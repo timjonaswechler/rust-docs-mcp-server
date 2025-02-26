@@ -1,0 +1,33 @@
+{
+	"name": "rust-docs-mcp-server",
+	"version": "1.0.0",
+	"description": "MCP server for accessing Rust documentation from docs.rs",
+	"module": "index.ts",
+	"type": "module",
+	"bin": {
+		"rust-docs-mcp-server": "./build/index.js"
+	},
+	"scripts": {
+		"build": "bun build ./src/index.ts --outdir ./build --target node",
+		"start": "bun run build && node ./build/index.js",
+		"dev": "bun run src/index.ts",
+		"test": "bun test"
+	},
+	"devDependencies": {
+		"@types/bun": "latest"
+	},
+	"peerDependencies": {
+		"typescript": "^5.0.0"
+	},
+	"dependencies": {
+		"@biomejs/biome": "^1.9.4",
+		"@modelcontextprotocol/sdk": "^1.6.0",
+		"axios": "^1.7.9",
+		"cheerio": "^1.0.0",
+		"pino": "^9.6.0",
+		"zod": "^3.24.2"
+	},
+	"engines": {
+		"node": ">=18.0.0"
+	}
+}

@@ -1,0 +1,6 @@
+# Testing the server
+
+The MCP server is already configured in your local environment, and you can't
+communicate with it when you run it in the terminal. Instead, just make tool
+calls to the rust-docs MCP server (after rebuilding) to test if it's working.
+Restart the server if that capability is available to you.

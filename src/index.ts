@@ -2,6 +2,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import * as cheerio from "cheerio";
 import docsRsService from "./services/docs-rs-service";
 import logger from "./utils/logger";
 
@@ -95,13 +96,46 @@ class RustDocsMcpServer {
 						version,
 					);
 
-					// Extract just the main content to avoid sending the entire HTML
-					const mainContentMatch = html.match(
-						/<div[^>]*class="content"[^>]*>([\s\S]*?)<\/div>/i,
-					);
-					const content = mainContentMatch
-						? mainContentMatch[1]
-						: "Documentation content not found";
+					// Use cheerio to parse the HTML and extract the content
+					const $ = cheerio.load(html);
+					
+					// Try different selectors to find the main content
+					let content = "Documentation content not found";
+					let contentFound = false;
+					
+					// First try the #main element which contains the main crate documentation
+					const mainElement = $("#main");
+					if (mainElement.length > 0) {
+						content = mainElement.html() || content;
+						contentFound = true;
+					}
+					
+					// If that fails, try other potential content containers
+					if (!contentFound) {
+						const selectors = [
+							"main",
+							".container.package-page-container",
+							".rustdoc",
+							".information",
+							".crate-info"
+						];
+						
+						for (const selector of selectors) {
+							const element = $(selector);
+							if (element.length > 0) {
+								content = element.html() || content;
+								contentFound = true;
+								break;
+							}
+						}
+					}
+					
+					// Log the extraction result
+					if (!contentFound) {
+						logger.warn(`Failed to extract content for crate: ${crateName}`);
+					} else {
+						logger.info(`Successfully extracted content for crate: ${crateName}`);
+					}
 
 					return {
 						content: [

@@ -250,7 +250,7 @@ export class DocsRsService {
 
 			// If we couldn't find any versions with the specific selector, try a more general approach
 			if (versions.length === 0) {
-				$('a[href*="/crate/' + crateName + '/"]').each((_, element) => {
+				$(`a[href*="/crate/${crateName}/"]`).each((_, element) => {
 					const href = $(element).attr("href") || "";
 					const versionMatch = href.match(
 						new RegExp(`/crate/${crateName}/([^/]+)`),

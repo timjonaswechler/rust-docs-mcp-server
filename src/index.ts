@@ -3,8 +3,16 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import * as cheerio from "cheerio";
-import docsRsService from "./services/docs-rs-service";
 import logger from "./utils/logger";
+import {
+	searchCrates,
+	getCrateDocumentation,
+	getTypeInfo,
+	getFeatureFlags,
+	getCrateVersions,
+	getSourceCode,
+	searchSymbols,
+} from "./service";
 
 /**
  * Rust Docs MCP Server
@@ -51,7 +59,7 @@ class RustDocsMcpServer {
 			},
 			async ({ query, page, perPage }) => {
 				try {
-					const result = await docsRsService.searchCrates({
+					const result = await searchCrates({
 						query,
 						page,
 						perPage,
@@ -91,25 +99,22 @@ class RustDocsMcpServer {
 			},
 			async ({ crateName, version }) => {
 				try {
-					const html = await docsRsService.getCrateDocumentation(
-						crateName,
-						version,
-					);
+					const html = await getCrateDocumentation(crateName, version);
 
 					// Use cheerio to parse the HTML and extract the content
 					const $ = cheerio.load(html);
-					
+
 					// Try different selectors to find the main content
 					let content = "Documentation content not found";
 					let contentFound = false;
-					
+
 					// First try the #main element which contains the main crate documentation
 					const mainElement = $("#main");
 					if (mainElement.length > 0) {
 						content = mainElement.html() || content;
 						contentFound = true;
 					}
-					
+
 					// If that fails, try other potential content containers
 					if (!contentFound) {
 						const selectors = [
@@ -117,9 +122,9 @@ class RustDocsMcpServer {
 							".container.package-page-container",
 							".rustdoc",
 							".information",
-							".crate-info"
+							".crate-info",
 						];
-						
+
 						for (const selector of selectors) {
 							const element = $(selector);
 							if (element.length > 0) {
@@ -129,12 +134,14 @@ class RustDocsMcpServer {
 							}
 						}
 					}
-					
+
 					// Log the extraction result
 					if (!contentFound) {
 						logger.warn(`Failed to extract content for crate: ${crateName}`);
 					} else {
-						logger.info(`Successfully extracted content for crate: ${crateName}`);
+						logger.info(
+							`Successfully extracted content for crate: ${crateName}`,
+						);
 					}
 
 					return {
@@ -176,11 +183,7 @@ class RustDocsMcpServer {
 			},
 			async ({ crateName, path, version }) => {
 				try {
-					const typeInfo = await docsRsService.getTypeInfo(
-						crateName,
-						path,
-						version,
-					);
+					const typeInfo = await getTypeInfo(crateName, path, version);
 					return {
 						content: [
 							{
@@ -216,10 +219,7 @@ class RustDocsMcpServer {
 			},
 			async ({ crateName, version }) => {
 				try {
-					const features = await docsRsService.getFeatureFlags(
-						crateName,
-						version,
-					);
+					const features = await getFeatureFlags(crateName, version);
 					return {
 						content: [
 							{
@@ -251,7 +251,7 @@ class RustDocsMcpServer {
 			},
 			async ({ crateName }) => {
 				try {
-					const versions = await docsRsService.getCrateVersions(crateName);
+					const versions = await getCrateVersions(crateName);
 					return {
 						content: [
 							{
@@ -288,11 +288,7 @@ class RustDocsMcpServer {
 			},
 			async ({ crateName, path, version }) => {
 				try {
-					const sourceCode = await docsRsService.getSourceCode(
-						crateName,
-						path,
-						version,
-					);
+					const sourceCode = await getSourceCode(crateName, path, version);
 					return {
 						content: [
 							{
@@ -329,11 +325,7 @@ class RustDocsMcpServer {
 			},
 			async ({ crateName, query, version }) => {
 				try {
-					const symbols = await docsRsService.searchSymbols(
-						crateName,
-						query,
-						version,
-					);
+					const symbols = await searchSymbols(crateName, query, version);
 					return {
 						content: [
 							{

@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import turndown from "turndown";
 import type {
 	CrateInfo,
 	CrateSearchResult,
@@ -11,6 +12,8 @@ import type {
 import docsRsClient from "./utils/http-client";
 import cratesIoClient from "./utils/crates-io-client";
 import logger from "./utils/logger";
+
+const turndownInstance = new turndown();
 
 /**
  * Search for crates on crates.io
@@ -63,9 +66,7 @@ export async function searchCrates(
 /**
  * Get detailed information about a crate from crates.io
  */
-export async function getCrateDetails(
-	crateName: string,
-): Promise<{
+export async function getCrateDetails(crateName: string): Promise<{
 	name: string;
 	description?: string;
 	versions: CrateVersion[];
@@ -142,7 +143,7 @@ export async function getCrateDocumentation(
 			throw new Error("Expected HTML response but got JSON");
 		}
 
-		return response.data;
+		return turndownInstance.turndown(response.data);
 	} catch (error) {
 		logger.error(`error getting documentation for crate: ${crateName}`, {
 			error,
@@ -284,7 +285,9 @@ export async function getCrateVersions(
 		logger.error(`error getting versions for crate: ${crateName}`, {
 			error,
 		});
-		throw new Error(`failed to get crate versions: ${(error as Error).message}`);
+		throw new Error(
+			`failed to get crate versions: ${(error as Error).message}`,
+		);
 	}
 }
 
@@ -329,36 +332,15 @@ export async function searchSymbols(
 ): Promise<SymbolDefinition[]> {
 	try {
 		logger.info(
-			`Searching for symbols in crate: ${crateName} with query: ${query}`,
+			`searching for symbols in crate: ${crateName} with query: ${query}`,
 		);
-
-		// For testing purposes, if it's tokio and runtime, return mock symbols
-		if (crateName === "tokio" && query === "runtime") {
-			return [
-				{
-					name: "Runtime",
-					kind: "struct",
-					path: "/tokio/runtime/struct.Runtime.html",
-				},
-				{
-					name: "Builder",
-					kind: "struct",
-					path: "/tokio/runtime/struct.Builder.html",
-				},
-				{
-					name: "Handle",
-					kind: "struct",
-					path: "/tokio/runtime/struct.Handle.html",
-				},
-			];
-		}
 
 		try {
 			const versionPath = version || "latest";
 			const response = await docsRsClient.get(
-				`/crate/${crateName}/${versionPath}/search`,
+				`/${crateName}/${versionPath}/${crateName}/`,
 				{
-					params: { query },
+					params: { search: query },
 				},
 			);
 
@@ -369,10 +351,10 @@ export async function searchSymbols(
 			const $ = cheerio.load(response.data);
 			const symbols: SymbolDefinition[] = [];
 
-			$(".search-results .result").each((_, element) => {
-				const name = $(element).find(".result-name").text().trim();
-				const kind = $(element).find(".result-kind").text().trim();
-				const path = $(element).find("a").attr("href") || "";
+			$(".search-results a").each((_, element) => {
+				const name = $(element).find(".result-name path").text().trim();
+				const kind = $(element).find(".result-name typename").text().trim();
+				const path = $(element).attr("href") || "";
 
 				symbols.push({
 					name,
@@ -388,9 +370,6 @@ export async function searchSymbols(
 				logger.info(
 					`Search endpoint not found for ${crateName}, trying alternative approach`,
 				);
-
-				// For now, return an empty array since we're handling this in the mock data above
-				return [];
 			}
 
 			// Re-throw other errors

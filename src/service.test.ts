@@ -38,33 +38,6 @@ describe("service", () => {
 		);
 	});
 
-	test(
-		"getCrateDocumentation should return HTML content for a valid crate",
-		async () => {
-			const html = await getCrateDocumentation("tokio");
-
-			// Verify that we got HTML content back
-			expect(html).toBeTruthy();
-			expect(html.includes("<!DOCTYPE html>")).toBe(true);
-
-			// Test HTML parsing with cheerio
-			const $ = cheerio.load(html);
-
-			// Check for key elements that should be present in the documentation
-			expect($("title").text()).toContain("tokio");
-
-			// Check for the main content element
-			const mainElement = $("#main");
-			expect(mainElement.length).toBeGreaterThan(0);
-
-			// Verify that the main content contains useful information
-			const mainContent = mainElement.text();
-			expect(mainContent.length).toBeGreaterThan(100);
-			expect(mainContent).toContain("Tokio");
-		},
-		timeout,
-	);
-
 	describe("getCrateVersions", () => {
 		test(
 			"should return versions for a valid crate",
@@ -109,55 +82,6 @@ describe("service", () => {
 		},
 		timeout,
 	);
-
-	// Test the HTML extraction in the MCP server
-	describe("html content extraction", () => {
-		let html: string;
-		let $: cheerio.CheerioAPI;
-
-		beforeAll(async () => {
-			// Fetch HTML once for all tests in this describe block
-			html = await getCrateDocumentation("tokio");
-			$ = cheerio.load(html);
-		});
-
-		test("should find main content with #main selector", () => {
-			const mainElement = $("#main");
-			expect(mainElement.length).toBeGreaterThan(0);
-
-			const content = mainElement.html();
-			expect(content).toBeTruthy();
-			expect(content?.length).toBeGreaterThan(100);
-		});
-
-		test("should extract content with alternative selectors if needed", () => {
-			const alternativeSelectors = [
-				"main",
-				".container.package-page-container",
-				".rustdoc",
-				".information",
-				".crate-info",
-			];
-
-			// At least one of these selectors should find content
-			let contentFound = false;
-
-			for (const selector of alternativeSelectors) {
-				const element = $(selector);
-				if (element.length > 0) {
-					const content = element.html();
-					if (content && content.length > 0) {
-						contentFound = true;
-						break;
-					}
-				}
-			}
-
-			// Either #main or at least one alternative selector should find content
-			const mainElement = $("#main");
-			expect(mainElement.length > 0 || contentFound).toBe(true);
-		});
-	});
 
 	describe("getCrateDetails", () => {
 		test(

@@ -54,7 +54,7 @@ export async function docsRsFetch(
 	const url = buildUrl(path, params);
 
 	try {
-		logger.debug(`making request to ${url}`, { method, params });
+		console.debug(`making request to ${url}`, { method, params });
 
 		const controller = new AbortController();
 		const timeoutId = setTimeout(() => controller.abort(), 10000);

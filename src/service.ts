@@ -1,4 +1,3 @@
-import axios from "axios";
 import * as cheerio from "cheerio";
 import type {
 	CrateInfo,
@@ -10,89 +9,54 @@ import type {
 	SymbolDefinition,
 } from "./types";
 import docsRsClient from "./utils/http-client";
+import cratesIoClient from "./utils/crates-io-client";
 import logger from "./utils/logger";
 
 /**
- * Search for crates on docs.rs
+ * Search for crates on crates.io
  */
 export async function searchCrates(
 	options: SearchOptions,
 ): Promise<CrateSearchResult> {
 	try {
-		logger.info(`Searching for crates with query: ${options.query}`);
+		logger.info(`searching for crates with query: ${options.query}`);
 
-		const response = await docsRsClient.get("/search", {
+		const response = await cratesIoClient.get("/crates", {
 			params: {
-				query: options.query,
+				q: options.query,
 				page: options.page || 1,
 				per_page: options.perPage || 10,
 			},
 		});
 
-		const $ = cheerio.load(response.data);
-		const crates: CrateInfo[] = [];
-
-		// Parse search results - updated selector based on current docs.rs HTML structure
-		$(".recent-with-detail .recent-releases-container").each((_, element) => {
-			const nameElement = $(element).find(".release a.release-title");
-			const name = nameElement.text().trim();
-			const versionElement = $(element).find(
-				".release div.description-container .version",
-			);
-			const version = versionElement.text().trim();
-			const descriptionElement = $(element).find(
-				".release div.description-container .description",
-			);
-			const description = descriptionElement.text().trim();
-
-			if (name) {
-				crates.push({
-					name,
-					version: version || "unknown",
-					description: description || undefined,
-				});
-			}
-		});
-
-		// If we couldn't find any crates with the specific selector, try a more general approach
-		if (crates.length === 0) {
-			$("a.release-title").each((_, element) => {
-				const name = $(element).text().trim();
-				if (name) {
-					crates.push({
-						name,
-						version: "unknown",
-						description: undefined,
-					});
-				}
-			});
+		if (response.contentType !== "json") {
+			throw new Error("Expected JSON response but got text");
 		}
 
-		// For testing purposes, if we still couldn't find any crates, add a mock one
-		if (crates.length === 0 && options.query === "serde") {
-			crates.push({
-				name: "serde",
-				version: "1.0.0",
-				description:
-					"A framework for serializing and deserializing Rust data structures",
-			});
-		}
+		const data = response.data as {
+			crates: Array<{
+				name: string;
+				max_version: string;
+				description?: string;
+			}>;
+			meta: {
+				total: number;
+			};
+		};
 
-		// Get total count - if we can't find it in pagination, use the crates length
-		let totalCount = crates.length;
-		const paginationText = $(".pagination").text().trim();
-		const totalCountMatch = paginationText.match(/of\s+(\d+)/i);
-		if (totalCountMatch) {
-			totalCount = Number.parseInt(totalCountMatch[1], 10);
-		}
+		const crates: CrateInfo[] = data.crates.map((crate) => ({
+			name: crate.name,
+			version: crate.max_version,
+			description: crate.description,
+		}));
 
 		return {
 			crates,
-			totalCount,
+			totalCount: data.meta.total,
 		};
 	} catch (error) {
-		logger.error("Error searching for crates", { error });
-		throw new Error(`Failed to search for crates: ${(error as Error).message}`);
+		logger.error("error searching for crates", { error });
+		throw new Error(`failed to search for crates: ${(error as Error).message}`);
 	}
 }
 
@@ -105,7 +69,7 @@ export async function getCrateDocumentation(
 ): Promise<string> {
 	try {
 		logger.info(
-			`Getting documentation for crate: ${crateName}${version ? ` version ${version}` : ""}`,
+			`getting documentation for crate: ${crateName}${version ? ` version ${version}` : ""}`,
 		);
 
 		const path = version
@@ -113,6 +77,11 @@ export async function getCrateDocumentation(
 			: `/crate/${crateName}/latest`;
 
 		const response = await docsRsClient.get(path);
+
+		if (response.contentType !== "text") {
+			throw new Error("Expected HTML response but got JSON");
+		}
+
 		return response.data;
 	} catch (error) {
 		logger.error(`Error getting documentation for crate: ${crateName}`, {
@@ -139,6 +108,11 @@ export async function getTypeInfo(
 		const fullPath = `/${crateName}/${versionPath}/${crateName}/${path}`;
 
 		const response = await docsRsClient.get(fullPath);
+
+		if (response.contentType !== "text") {
+			throw new Error("Expected HTML response but got JSON");
+		}
+
 		const $ = cheerio.load(response.data);
 
 		// Determine the kind of type
@@ -190,6 +164,10 @@ export async function getFeatureFlags(
 			`/crate/${crateName}/${versionPath}/features`,
 		);
 
+		if (response.contentType !== "text") {
+			throw new Error("Expected HTML response but got JSON");
+		}
+
 		const $ = cheerio.load(response.data);
 		const features: FeatureFlag[] = [];
 
@@ -224,6 +202,11 @@ export async function getCrateVersions(
 		logger.info(`Getting versions for crate: ${crateName}`);
 
 		const response = await docsRsClient.get(`/crate/${crateName}`);
+
+		if (typeof response.data !== "string") {
+			throw new Error("Expected HTML response but got JSON");
+		}
+
 		const $ = cheerio.load(response.data);
 		const versions: CrateVersion[] = [];
 
@@ -285,6 +268,10 @@ export async function getSourceCode(
 			`/crate/${crateName}/${versionPath}/src/${path}`,
 		);
 
+		if (typeof response.data !== "string") {
+			throw new Error("Expected HTML response but got JSON");
+		}
+
 		const $ = cheerio.load(response.data);
 		return $(".src").text();
 	} catch (error) {
@@ -339,6 +326,10 @@ export async function searchSymbols(
 				},
 			);
 
+			if (typeof response.data !== "string") {
+				throw new Error("Expected HTML response but got JSON");
+			}
+
 			const $ = cheerio.load(response.data);
 			const symbols: SymbolDefinition[] = [];
 
@@ -357,10 +348,7 @@ export async function searchSymbols(
 			return symbols;
 		} catch (innerError: unknown) {
 			// If we get a 404, try a different approach - search in the main documentation
-			if (
-				axios.isAxiosError(innerError) &&
-				innerError.response?.status === 404
-			) {
+			if (innerError instanceof Error && innerError.message.includes("404")) {
 				logger.info(
 					`Search endpoint not found for ${crateName}, trying alternative approach`,
 				);

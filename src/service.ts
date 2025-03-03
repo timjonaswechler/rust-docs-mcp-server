@@ -21,7 +21,7 @@ export async function searchCrates(
 	try {
 		logger.info(`searching for crates with query: ${options.query}`);
 
-		const response = await cratesIoClient.get("/crates", {
+		const response = await cratesIoClient.get("crates", {
 			params: {
 				q: options.query,
 				page: options.page || 1,
@@ -77,7 +77,7 @@ export async function getCrateDetails(
 	try {
 		logger.info(`getting crate details for: ${crateName}`);
 
-		const response = await cratesIoClient.get(`/crates/${crateName}`);
+		const response = await cratesIoClient.get(`crates/${crateName}`);
 
 		if (response.contentType !== "json") {
 			throw new Error("Expected JSON response but got text");
@@ -133,8 +133,8 @@ export async function getCrateDocumentation(
 		);
 
 		const path = version
-			? `/crate/${crateName}/${version}`
-			: `/crate/${crateName}/latest`;
+			? `crate/${crateName}/${version}`
+			: `crate/${crateName}/latest`;
 
 		const response = await docsRsClient.get(path);
 
@@ -165,7 +165,7 @@ export async function getTypeInfo(
 		logger.info(`Getting type info for ${path} in crate: ${crateName}`);
 
 		const versionPath = version || "latest";
-		const fullPath = `/${crateName}/${versionPath}/${crateName}/${path}`;
+		const fullPath = `${crateName}/${versionPath}/${crateName}/${path}`;
 
 		const response = await docsRsClient.get(fullPath);
 
@@ -261,7 +261,7 @@ export async function getCrateVersions(
 	try {
 		logger.info(`getting versions for crate: ${crateName}`);
 
-		const response = await cratesIoClient.get(`/crates/${crateName}`);
+		const response = await cratesIoClient.get(`crates/${crateName}`);
 
 		if (response.contentType !== "json") {
 			throw new Error("Expected JSON response but got text");

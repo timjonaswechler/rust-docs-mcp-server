@@ -14,10 +14,16 @@ describe("service", () => {
 	const timeout = 15000;
 
 	describe("searchCrates should return results for a valid query", () => {
-		test(
-			"serde",
-			async () => {
-				const result = await searchCrates({ query: "serde" });
+		test.each([
+			["serde",  "serde"],
+			["tokio",  "tokio"],
+			["pin-project", "pin-project"],
+			["pin_project",  "pin-project"],
+			["fjall",  "fjall"],
+		])(
+			"%s",
+			async (query, name) => {
+				const result = await searchCrates({ query });
 				expect(result.crates.length).toBeGreaterThan(0);
 				expect(result.totalCount).toBeGreaterThan(0);
 				// Check that each crate has a version
@@ -25,51 +31,8 @@ describe("service", () => {
 					expect(crate.name).toBeDefined();
 					expect(crate.version).toBeDefined();
 				}
-			},
-			timeout,
-		);
 
-		test(
-			"tokio",
-			async () => {
-				const result = await searchCrates({ query: "tokio" });
-				expect(result.crates.length).toBeGreaterThan(0);
-				expect(result.totalCount).toBeGreaterThan(0);
-				// Check that each crate has a version
-				for (const crate of result.crates) {
-					expect(crate.name).toBeDefined();
-					expect(crate.version).toBeDefined();
-				}
-			},
-			timeout,
-		);
-
-		test(
-			"fjall",
-			async () => {
-				const result = await searchCrates({ query: "fjall" });
-				expect(result.crates.length).toBeGreaterThan(0);
-				expect(result.totalCount).toBeGreaterThan(0);
-			},
-			timeout,
-		);
-
-		test(
-			"pin-project",
-			async () => {
-				const result = await searchCrates({ query: "pin-project" });
-				expect(result.crates.length).toBeGreaterThan(0);
-				expect(result.totalCount).toBeGreaterThan(0);
-			},
-			timeout,
-		);
-
-		test(
-			"pin_project",
-			async () => {
-				const result = await searchCrates({ query: "pin_project" });
-				expect(result.crates.length).toBeGreaterThan(0);
-				expect(result.totalCount).toBeGreaterThan(0);
+				expect(result.crates.some((crate) => crate.name === name)).toBe(true);
 			},
 			timeout,
 		);
@@ -108,7 +71,7 @@ describe("service", () => {
 			async () => {
 				const versions = await getCrateVersions("tokio");
 				expect(versions.length).toBeGreaterThan(0);
-				
+
 				// Check that each version has the expected properties
 				for (const version of versions) {
 					expect(version.version).toBeDefined();

@@ -22,7 +22,7 @@ type FetchResponse =
 
 // base configuration for crates.io requests
 const BASE_CONFIG = {
-	baseURL: "https://crates.io/api/v1",
+	baseURL: "https://crates.io/api/v1/",
 	headers: {
 		Accept: "application/json",
 		"User-Agent": "rust-docs-mcp-server/1.0.0",
@@ -103,4 +103,4 @@ export default {
 		cratesIoFetch(path, { ...options, method: "PUT" }),
 	delete: (path: string, options = {}) =>
 		cratesIoFetch(path, { ...options, method: "DELETE" }),
-}; 
+};

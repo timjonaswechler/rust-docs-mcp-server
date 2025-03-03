@@ -2,7 +2,7 @@ import pino from "pino";
 
 // Create a logger instance with appropriate configuration
 export const logger = pino({
-	level: process.env.LOG_LEVEL || "info",
+	level: process.env.LOG_LEVEL || "warn",
 	transport: {
 		target: "pino/file",
 		options: { destination: 2 }, // stderr

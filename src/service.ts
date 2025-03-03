@@ -61,7 +61,67 @@ export async function searchCrates(
 }
 
 /**
- * Get documentation for a specific crate
+ * Get detailed information about a crate from crates.io
+ */
+export async function getCrateDetails(
+	crateName: string,
+): Promise<{
+	name: string;
+	description?: string;
+	versions: CrateVersion[];
+	downloads: number;
+	homepage?: string;
+	repository?: string;
+	documentation?: string;
+}> {
+	try {
+		logger.info(`getting crate details for: ${crateName}`);
+
+		const response = await cratesIoClient.get(`/crates/${crateName}`);
+
+		if (response.contentType !== "json") {
+			throw new Error("Expected JSON response but got text");
+		}
+
+		const data = response.data as {
+			crate: {
+				name: string;
+				description?: string;
+				downloads: number;
+				homepage?: string;
+				repository?: string;
+				documentation?: string;
+			};
+			versions: Array<{
+				num: string;
+				yanked: boolean;
+				created_at: string;
+			}>;
+		};
+
+		return {
+			name: data.crate.name,
+			description: data.crate.description,
+			downloads: data.crate.downloads,
+			homepage: data.crate.homepage,
+			repository: data.crate.repository,
+			documentation: data.crate.documentation,
+			versions: data.versions.map((v) => ({
+				version: v.num,
+				isYanked: v.yanked,
+				releaseDate: v.created_at,
+			})),
+		};
+	} catch (error) {
+		logger.error(`error getting crate details for: ${crateName}`, { error });
+		throw new Error(
+			`failed to get crate details for ${crateName}: ${(error as Error).message}`,
+		);
+	}
+}
+
+/**
+ * Get documentation for a specific crate from docs.rs
  */
 export async function getCrateDocumentation(
 	crateName: string,
@@ -84,11 +144,11 @@ export async function getCrateDocumentation(
 
 		return response.data;
 	} catch (error) {
-		logger.error(`Error getting documentation for crate: ${crateName}`, {
+		logger.error(`error getting documentation for crate: ${crateName}`, {
 			error,
 		});
 		throw new Error(
-			`Failed to get documentation for crate ${crateName}: ${(error as Error).message}`,
+			`failed to get documentation for crate ${crateName}: ${(error as Error).message}`,
 		);
 	}
 }
@@ -193,62 +253,38 @@ export async function getFeatureFlags(
 }
 
 /**
- * Get available versions for a crate
+ * Get available versions for a crate from crates.io
  */
 export async function getCrateVersions(
 	crateName: string,
 ): Promise<CrateVersion[]> {
 	try {
-		logger.info(`Getting versions for crate: ${crateName}`);
+		logger.info(`getting versions for crate: ${crateName}`);
 
-		const response = await docsRsClient.get(`/crate/${crateName}`);
+		const response = await cratesIoClient.get(`/crates/${crateName}`);
 
-		if (typeof response.data !== "string") {
-			throw new Error("Expected HTML response but got JSON");
+		if (response.contentType !== "json") {
+			throw new Error("Expected JSON response but got text");
 		}
 
-		const $ = cheerio.load(response.data);
-		const versions: CrateVersion[] = [];
+		const data = response.data as {
+			versions: Array<{
+				num: string;
+				yanked: boolean;
+				created_at: string;
+			}>;
+		};
 
-		// Try to find versions with the expected selector
-		$(".versions li").each((_, element) => {
-			const version = $(element).find("a").text().trim();
-			const isYanked = $(element).hasClass("yanked");
-
-			if (version) {
-				versions.push({
-					version,
-					isYanked,
-				});
-			}
-		});
-
-		// If we couldn't find any versions with the specific selector, try a more general approach
-		if (versions.length === 0) {
-			$(`a[href*="/crate/${crateName}/"]`).each((_, element) => {
-				const href = $(element).attr("href") || "";
-				const versionMatch = href.match(
-					new RegExp(`/crate/${crateName}/([^/]+)`),
-				);
-
-				if (versionMatch && versionMatch[1] !== "latest") {
-					const version = versionMatch[1];
-					if (!versions.some((v) => v.version === version)) {
-						versions.push({
-							version,
-							isYanked: false,
-						});
-					}
-				}
-			});
-		}
-
-		return versions;
+		return data.versions.map((v) => ({
+			version: v.num,
+			isYanked: v.yanked,
+			releaseDate: v.created_at,
+		}));
 	} catch (error) {
-		logger.error(`Error getting versions for crate: ${crateName}`, { error });
-		throw new Error(
-			`Failed to get crate versions: ${(error as Error).message}`,
-		);
+		logger.error(`error getting versions for crate: ${crateName}`, {
+			error,
+		});
+		throw new Error(`failed to get crate versions: ${(error as Error).message}`);
 	}
 }
 

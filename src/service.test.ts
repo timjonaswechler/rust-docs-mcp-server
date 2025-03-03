@@ -6,21 +6,74 @@ import {
 	getCrateVersions,
 	searchSymbols,
 	getTypeInfo,
+	getCrateDetails,
 } from "./service";
 
 describe("service", () => {
 	// Set longer timeout for network requests
 	const timeout = 15000;
 
-	test(
-		"searchCrates should return results for a valid query",
-		async () => {
-			const result = await searchCrates({ query: "serde" });
-			expect(result.crates.length).toBeGreaterThan(0);
-			expect(result.totalCount).toBeGreaterThan(0);
-		},
-		timeout,
-	);
+	describe("searchCrates should return results for a valid query", () => {
+		test(
+			"serde",
+			async () => {
+				const result = await searchCrates({ query: "serde" });
+				expect(result.crates.length).toBeGreaterThan(0);
+				expect(result.totalCount).toBeGreaterThan(0);
+				// Check that each crate has a version
+				for (const crate of result.crates) {
+					expect(crate.name).toBeDefined();
+					expect(crate.version).toBeDefined();
+				}
+			},
+			timeout,
+		);
+
+		test(
+			"tokio",
+			async () => {
+				const result = await searchCrates({ query: "tokio" });
+				expect(result.crates.length).toBeGreaterThan(0);
+				expect(result.totalCount).toBeGreaterThan(0);
+				// Check that each crate has a version
+				for (const crate of result.crates) {
+					expect(crate.name).toBeDefined();
+					expect(crate.version).toBeDefined();
+				}
+			},
+			timeout,
+		);
+
+		test(
+			"fjall",
+			async () => {
+				const result = await searchCrates({ query: "fjall" });
+				expect(result.crates.length).toBeGreaterThan(0);
+				expect(result.totalCount).toBeGreaterThan(0);
+			},
+			timeout,
+		);
+
+		test(
+			"pin-project",
+			async () => {
+				const result = await searchCrates({ query: "pin-project" });
+				expect(result.crates.length).toBeGreaterThan(0);
+				expect(result.totalCount).toBeGreaterThan(0);
+			},
+			timeout,
+		);
+
+		test(
+			"pin_project",
+			async () => {
+				const result = await searchCrates({ query: "pin_project" });
+				expect(result.crates.length).toBeGreaterThan(0);
+				expect(result.totalCount).toBeGreaterThan(0);
+			},
+			timeout,
+		);
+	});
 
 	test(
 		"getCrateDocumentation should return HTML content for a valid crate",
@@ -49,15 +102,23 @@ describe("service", () => {
 		timeout,
 	);
 
-	test(
-		"getCrateVersions should return versions for a valid crate",
-		async () => {
-			const versions = await getCrateVersions("tokio");
-			expect(versions.length).toBeGreaterThan(0);
-			expect(versions[0].version).toBeTruthy();
-		},
-		timeout,
-	);
+	describe("getCrateVersions", () => {
+		test(
+			"should return versions for a valid crate",
+			async () => {
+				const versions = await getCrateVersions("tokio");
+				expect(versions.length).toBeGreaterThan(0);
+				
+				// Check that each version has the expected properties
+				for (const version of versions) {
+					expect(version.version).toBeDefined();
+					expect(typeof version.isYanked).toBe("boolean");
+					expect(version.releaseDate).toBeDefined();
+				}
+			},
+			timeout,
+		);
+	});
 
 	test(
 		"searchSymbols should return symbols for a valid query",
@@ -103,7 +164,7 @@ describe("service", () => {
 
 			const content = mainElement.html();
 			expect(content).toBeTruthy();
-			expect(content!.length).toBeGreaterThan(100);
+			expect(content?.length).toBeGreaterThan(100);
 		});
 
 		test("should extract content with alternative selectors if needed", () => {
@@ -133,5 +194,19 @@ describe("service", () => {
 			const mainElement = $("#main");
 			expect(mainElement.length > 0 || contentFound).toBe(true);
 		});
+	});
+
+	describe("getCrateDetails", () => {
+		test(
+			"should return details for a valid crate",
+			async () => {
+				const details = await getCrateDetails("tokio");
+				expect(details.name).toBe("tokio");
+				expect(details.description).toBeDefined();
+				expect(details.versions.length).toBeGreaterThan(0);
+				expect(details.downloads).toBeGreaterThan(0);
+			},
+			timeout,
+		);
 	});
 });

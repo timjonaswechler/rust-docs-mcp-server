@@ -1,12 +1,12 @@
-import { describe, expect, test, beforeAll } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
 import * as cheerio from "cheerio";
 import {
-	searchCrates,
+	getCrateDetails,
 	getCrateDocumentation,
 	getCrateVersions,
-	searchSymbols,
 	getTypeInfo,
-	getCrateDetails,
+	searchCrates,
+	searchSymbols,
 } from "./service";
 
 describe("service", () => {
@@ -15,11 +15,11 @@ describe("service", () => {
 
 	describe("searchCrates should return results for a valid query", () => {
 		test.each([
-			["serde",  "serde"],
-			["tokio",  "tokio"],
+			["serde", "serde"],
+			["tokio", "tokio"],
 			["pin-project", "pin-project"],
-			["pin_project",  "pin-project"],
-			["fjall",  "fjall"],
+			["pin_project", "pin-project"],
+			["fjall", "fjall"],
 		])(
 			"%s",
 			async (query, name) => {

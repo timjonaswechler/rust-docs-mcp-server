@@ -9,8 +9,8 @@ import type {
 	SearchOptions,
 	SymbolDefinition,
 } from "./types";
-import docsRsClient from "./utils/http-client";
 import cratesIoClient from "./utils/crates-io-client";
+import docsRsClient from "./utils/http-client";
 import logger from "./utils/logger";
 
 const turndownInstance = new turndown();
@@ -143,7 +143,16 @@ export async function getCrateDocumentation(
 			throw new Error("Expected HTML response but got JSON");
 		}
 
-		return turndownInstance.turndown(response.data);
+		// Extract main content from the HTML
+		const $ = cheerio.load(response.data);
+		const mainContent = $("#main-content").html();
+
+		if (!mainContent) {
+			// Fallback to full document if main-content not found
+			return turndownInstance.turndown(response.data);
+		}
+
+		return turndownInstance.turndown(mainContent);
 	} catch (error) {
 		logger.error(`error getting documentation for crate: ${crateName}`, {
 			error,
@@ -183,14 +192,14 @@ export async function getTypeInfo(
 		else if ($(".trait").length) kind = "trait";
 		else if ($(".fn").length) kind = "function";
 		else if ($(".macro").length) kind = "macro";
-		else if ($(".typedef").length) kind = "type";
+		else if ($(".type").length) kind = "type";
 		else if ($(".mod").length) kind = "module";
 
 		// Get description
 		const description = $(".docblock").first().text().trim();
 
 		// Get source URL if available
-		const sourceUrl = $(".src-link a").attr("href");
+		const sourceUrl = $(".src").attr("href");
 
 		const name = path.split("/").pop() || path;
 
@@ -232,10 +241,20 @@ export async function getFeatureFlags(
 		const $ = cheerio.load(response.data);
 		const features: FeatureFlag[] = [];
 
-		$(".feature").each((_, element) => {
-			const name = $(element).find(".feature-name").text().trim();
-			const description = $(element).find(".feature-description").text().trim();
-			const enabled = $(element).hasClass("feature-enabled");
+		// Features are displayed as h3 headers with optional default markers
+		$("h3").each((_, element) => {
+			const $element = $(element);
+			const name = $element.attr("id");
+			if (!name) return;
+
+			// Skip the "default" section as it's just a list of default features
+			if (name === "default") return;
+
+			const text = $element.text();
+			const enabled =
+				text.includes("(default)") ||
+				$element.next().find(".is-default-feature").length > 0;
+			const description = $element.next("p").text().trim();
 
 			features.push({
 				name,
@@ -292,7 +311,7 @@ export async function getCrateVersions(
 }
 
 /**
- * Get source code for a specific item
+ * Get source code for a specific item from docs.rs source view
  */
 export async function getSourceCode(
 	crateName: string,
@@ -312,7 +331,17 @@ export async function getSourceCode(
 		}
 
 		const $ = cheerio.load(response.data);
-		return $(".src").text();
+		// Source code is contained in a pre.rust element on docs.rs source pages
+		const sourceCode = $("pre.rust").text();
+
+		// If no source found with pre.rust, try alternative selectors
+		if (!sourceCode) {
+			// Try code element as fallback
+			const codeElement = $("code").text();
+			if (codeElement) return codeElement;
+		}
+
+		return sourceCode;
 	} catch (error) {
 		logger.error(
 			`Error getting source code for ${path} in crate: ${crateName}`,
@@ -323,7 +352,8 @@ export async function getSourceCode(
 }
 
 /**
- * Search for symbols within a crate
+ * Search for symbols within a crate using the /all.html endpoint
+ * This approach fetches all symbols from the crate and filters them client-side
  */
 export async function searchSymbols(
 	crateName: string,
@@ -335,46 +365,72 @@ export async function searchSymbols(
 			`searching for symbols in crate: ${crateName} with query: ${query}`,
 		);
 
-		try {
-			const versionPath = version || "latest";
-			const response = await docsRsClient.get(
-				`/${crateName}/${versionPath}/${crateName}/`,
-				{
-					params: { search: query },
-				},
-			);
+		const versionPath = version || "latest";
+		const response = await docsRsClient.get(
+			`${crateName}/${versionPath}/${crateName}/all.html`,
+		);
 
-			if (typeof response.data !== "string") {
-				throw new Error("Expected HTML response but got JSON");
-			}
-
-			const $ = cheerio.load(response.data);
-			const symbols: SymbolDefinition[] = [];
-
-			$(".search-results a").each((_, element) => {
-				const name = $(element).find(".result-name path").text().trim();
-				const kind = $(element).find(".result-name typename").text().trim();
-				const path = $(element).attr("href") || "";
-
-				symbols.push({
-					name,
-					kind,
-					path,
-				});
-			});
-
-			return symbols;
-		} catch (innerError: unknown) {
-			// If we get a 404, try a different approach - search in the main documentation
-			if (innerError instanceof Error && innerError.message.includes("404")) {
-				logger.info(
-					`Search endpoint not found for ${crateName}, trying alternative approach`,
-				);
-			}
-
-			// Re-throw other errors
-			throw innerError;
+		if (typeof response.data !== "string") {
+			throw new Error("Expected HTML response but got JSON");
 		}
+
+		const $ = cheerio.load(response.data);
+		const symbols: SymbolDefinition[] = [];
+
+		// Parse each section (structs, enums, traits, etc.)
+		$("h3").each((_, element) => {
+			const sectionTitle = $(element).text().toLowerCase();
+			const sectionId = $(element).attr("id");
+
+			// Skip if no section ID (not a symbol section)
+			if (!sectionId) return;
+
+			// Get the symbol kind from section ID
+			const kind =
+				sectionId === "structs"
+					? "struct"
+					: sectionId === "enums"
+						? "enum"
+						: sectionId === "traits"
+							? "trait"
+							: sectionId === "functions"
+								? "function"
+								: sectionId === "macros"
+									? "macro"
+									: sectionId === "derives"
+										? "derive"
+										: sectionId === "modules"
+											? "module"
+											: "other";
+
+			// Parse symbols in this section
+			$(element)
+				.next("ul.all-items")
+				.find("li a")
+				.each((_, link) => {
+					const fullName = $(link).text().trim();
+					const path = $(link).attr("href") || "";
+
+					// Extract just the symbol name (last part after ::)
+					const symbolName = fullName.split("::").pop() || fullName;
+
+					// Filter by query (case-insensitive)
+					if (
+						symbolName.toLowerCase().includes(query.toLowerCase()) ||
+						fullName.toLowerCase().includes(query.toLowerCase())
+					) {
+						symbols.push({
+							name: symbolName,
+							kind,
+							path: fullName, // Full path including module
+							documentationUrl: `https://docs.rs/${crateName}/${versionPath}/${crateName}/${path}`,
+						});
+					}
+				});
+		});
+
+		logger.info(`Found ${symbols.length} symbols matching query: ${query}`);
+		return symbols;
 	} catch (error) {
 		logger.error(`Error searching for symbols in crate: ${crateName}`, {
 			error,

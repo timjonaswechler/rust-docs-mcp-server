@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
 import * as cheerio from "cheerio";
-import logger from "./utils/logger";
+import { z } from "zod";
 import {
-	searchCrates,
 	getCrateDocumentation,
-	getTypeInfo,
-	getFeatureFlags,
 	getCrateVersions,
+	getFeatureFlags,
 	getSourceCode,
+	getTypeInfo,
+	searchCrates,
 	searchSymbols,
 } from "./service";
+import logger from "./utils/logger";
 
 /**
  * Rust Docs MCP Server

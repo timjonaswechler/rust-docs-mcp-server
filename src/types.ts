@@ -46,6 +46,7 @@ export interface SymbolDefinition {
 	name: string;
 	kind: string;
 	path: string;
+	documentationUrl?: string;
 	sourceCode?: string;
 	documentationHtml?: string;
 }

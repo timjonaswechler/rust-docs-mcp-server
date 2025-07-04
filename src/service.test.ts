@@ -57,7 +57,7 @@ describe("service", () => {
   test(
     "searchSymbols should return symbols for a valid query",
     async () => {
-      const symbols = await searchSymbols("tokio", "runtime");
+      const symbols = await searchSymbols("tokio", "runtime", "1.41.0");
       expect(symbols.length).toBeGreaterThan(0);
     },
     timeout

@@ -128,14 +128,18 @@ export async function getCrateDocumentation(
 	crateName: string,
 	version?: string,
 ): Promise<string> {
+	// Validate required parameters
+	if (!crateName?.trim()) {
+		throw new Error("Crate name is required and cannot be empty");
+	}
+
 	try {
 		logger.info(
 			`getting documentation for crate: ${crateName}${version ? ` version ${version}` : ""}`,
 		);
 
-		const path = version
-			? `crate/${crateName}/${version}`
-			: `crate/${crateName}/latest`;
+		const versionPath = version || "latest";
+		const path = `${crateName}/${versionPath}/${crateName}/`;
 
 		const response = await docsRsClient.get(path);
 
@@ -318,13 +322,39 @@ export async function getSourceCode(
 	path: string,
 	version?: string,
 ): Promise<string> {
+	// Validate required parameters
+	if (!crateName?.trim()) {
+		throw new Error("Crate name is required and cannot be empty");
+	}
+	if (!path?.trim()) {
+		throw new Error("Path is required and cannot be empty. Use format like 'lib.rs' or 'src/main.rs'");
+	}
+
 	try {
 		logger.info(`Getting source code for ${path} in crate: ${crateName}`);
 
 		const versionPath = version || "latest";
-		const response = await docsRsClient.get(
-			`/crate/${crateName}/${versionPath}/src/${path}`,
-		);
+		// Try different URL patterns for source code access
+		let response;
+		const possibleUrls = [
+			`/${crateName}/${versionPath}/src/${crateName}/${path}`,
+			`/crate/${crateName}/${versionPath}/source/${path}`,
+			`/${crateName}/${versionPath}/source/${path}`,
+		];
+
+		for (const url of possibleUrls) {
+			try {
+				response = await docsRsClient.get(url);
+				break;
+			} catch (error) {
+				// Try next URL pattern
+				continue;
+			}
+		}
+
+		if (!response) {
+			throw new Error(`Could not find source code at any of the attempted URLs: ${possibleUrls.join(', ')}`);
+		}
 
 		if (typeof response.data !== "string") {
 			throw new Error("Expected HTML response but got JSON");
@@ -358,14 +388,25 @@ export async function getSourceCode(
 export async function searchSymbols(
 	crateName: string,
 	query: string,
-	version?: string,
+	version: string,
 ): Promise<SymbolDefinition[]> {
+	// Validate required parameters
+	if (!crateName?.trim()) {
+		throw new Error("Crate name is required and cannot be empty");
+	}
+	if (!query?.trim()) {
+		throw new Error("Search query is required and cannot be empty");
+	}
+	if (!version?.trim()) {
+		throw new Error("Version is required for symbol search. Please specify a version (e.g., '1.0.0')");
+	}
+
 	try {
 		logger.info(
-			`searching for symbols in crate: ${crateName} with query: ${query}`,
+			`searching for symbols in crate: ${crateName} with query: ${query} version: ${version}`,
 		);
 
-		const versionPath = version || "latest";
+		const versionPath = version;
 		const response = await docsRsClient.get(
 			`${crateName}/${versionPath}/${crateName}/all.html`,
 		);

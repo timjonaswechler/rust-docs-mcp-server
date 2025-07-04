@@ -108,30 +108,22 @@ class RustDocsMcpServer {
 					let content = "Documentation content not found";
 					let contentFound = false;
 
-					// First try the #main element which contains the main crate documentation
-					const mainElement = $("#main");
-					if (mainElement.length > 0) {
-						content = mainElement.html() || content;
-						contentFound = true;
-					}
+					// First try the main docs.rs content selectors
+					const selectors = [
+						`#${crateName}`, // Primary content section (e.g., #serde)
+						"#main-content", // Alternative main content
+						"main", // HTML5 main element
+						".docblock", // Documentation blocks
+						".rustdoc", // Rustdoc container
+						".content", // General content
+					];
 
-					// If that fails, try other potential content containers
-					if (!contentFound) {
-						const selectors = [
-							"main",
-							".container.package-page-container",
-							".rustdoc",
-							".information",
-							".crate-info",
-						];
-
-						for (const selector of selectors) {
-							const element = $(selector);
-							if (element.length > 0) {
-								content = element.html() || content;
-								contentFound = true;
-								break;
-							}
+					for (const selector of selectors) {
+						const element = $(selector);
+						if (element.length > 0) {
+							content = element.html() || content;
+							contentFound = true;
+							break;
 						}
 					}
 
@@ -320,8 +312,8 @@ class RustDocsMcpServer {
 				query: z.string().min(1).describe("Search query for symbols"),
 				version: z
 					.string()
-					.optional()
-					.describe("Specific version (defaults to latest)"),
+					.min(1)
+					.describe("Specific version (required for symbol search)"),
 			},
 			async ({ crateName, query, version }) => {
 				try {

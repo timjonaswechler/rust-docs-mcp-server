@@ -11,8 +11,8 @@ import {
 	getTypeInfo,
 	searchCrates,
 	searchSymbols,
-} from "./service";
-import logger from "./utils/logger";
+} from "./service.js";
+import logger from "./utils/logger.js";
 
 /**
  * Rust Docs MCP Server

@@ -8,10 +8,10 @@ import type {
 	RustType,
 	SearchOptions,
 	SymbolDefinition,
-} from "./types";
-import cratesIoClient from "./utils/crates-io-client";
-import docsRsClient from "./utils/http-client";
-import logger from "./utils/logger";
+} from "./types.js";
+import cratesIoClient from "./utils/crates-io-client.js";
+import docsRsClient from "./utils/http-client.js";
+import logger from "./utils/logger.js";
 
 const turndownInstance = new turndown();
 

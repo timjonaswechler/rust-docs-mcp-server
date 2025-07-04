@@ -14,7 +14,7 @@ An MCP (Model Context Protocol) server that provides access to Rust documentatio
 
 ## Installation
 
-This project uses Bun for development, but the built server can run with Node.js.
+This project uses npm for dependency management and TypeScript compilation.
 
 ```bash
 # Clone the repository
@@ -22,14 +22,14 @@ git clone https://github.com/yourusername/rust-docs-mcp-server.git
 cd rust-docs-mcp-server
 
 # Install dependencies
-bun install
+npm install
 ```
 
 ## Building
 
 ```bash
 # Build the server
-bun run build
+npm run build
 ```
 
 This will create a build directory with the compiled JavaScript files.
@@ -38,10 +38,10 @@ This will create a build directory with the compiled JavaScript files.
 
 ```bash
 # Run the development server
-bun run dev
+npm run dev
 
 # Or run the built server
-bun run start
+npm run start
 ```
 
 ## Usage with MCP Clients
@@ -64,7 +64,7 @@ The server provides the following tools:
 
 ```bash
 # Run tests
-bun test
+npm test
 ```
 
 ## License

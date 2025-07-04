@@ -8,17 +8,19 @@
 		"rust-docs-mcp-server": "./build/index.js"
 	},
 	"scripts": {
-		"build": "bun build ./src/index.ts --outdir ./build --target node",
-		"start": "bun run build && node ./build/index.js",
-		"dev": "bun run src/index.ts",
-		"test": "bun test"
+		"build": "tsc && cp package.json build/",
+		"start": "npm run build && node ./build/index.js",
+		"dev": "tsx src/index.ts",
+		"test": "jest"
 	},
 	"devDependencies": {
-		"@types/bun": "latest",
-		"@types/turndown": "^5.0.5"
-	},
-	"peerDependencies": {
-		"typescript": "^5.0.0"
+		"@types/node": "^20.0.0",
+		"@types/turndown": "^5.0.5",
+		"typescript": "^5.0.0",
+		"tsx": "^4.0.0",
+		"jest": "^29.0.0",
+		"@types/jest": "^29.0.0",
+		"ts-jest": "^29.0.0"
 	},
 	"dependencies": {
 		"@biomejs/biome": "^1.9.4",
@@ -31,6 +33,5 @@
 	},
 	"engines": {
 		"node": ">=18.0.0"
-	},
-	"packageManager": "yarn@1.22.19+sha1.4ba7fc5c6e704fce2066ecbfb0b0d8976fe62447"
+	}
 }
